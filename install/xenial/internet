@@ -22,6 +22,17 @@ sudo apt -y install nmap snmp snmp-mibs-downloader
 logger "internet - thunderbird"
 sudo apt -y install thunderbird-gnome-support
 
+# firefox extension manager
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/mozilla/mozilla-extension-manager-install.sh
+chmod +x ./mozilla-extension-manager-install.sh
+./mozilla-extension-manager-install.sh
+rm mozilla-extension-manager-install.sh
+
+# firefox downloadhelper extension
+wget -O downloadhelper.deb https://github.com/mi-g/vdhcoapp/releases/download/v1.1.0/net.downloadhelper.coapp-1.1.0-1_amd64.deb
+sudo dpkg -i downloadhelper.deb
+rm downloadhelper.deb
+
 # chromium and filezilla
 logger "internet - chromium & filezilla"
 sudo apt -y install chromium-browser filezilla
@@ -43,6 +54,7 @@ rm youtubedl-gui-install.sh
 logger "internet - whatsie"
 wget https://github.com/gsantner/whatsie/releases/download/v2.1.0/whatsie-2.1.0-linux-amd64.deb
 sudo dpkg -i whatsie-2.1.0-linux-amd64.deb
+sudo apt-get -y -f install
 rm whatsie-2.1.0-linux-amd64.deb
 
 # telegram client
@@ -58,3 +70,5 @@ sudo apt update
 sudo apt -y install syncthing
 sudo systemctl enable syncthing@${USER}.service
 sudo systemctl start syncthing@${USER}.service
+mkdir --parents $HOME/.local/share/icons
+wget -O $HOME/.local/share/icons/syncthing.png  https://github.com/NicolasBernaerts/icon/raw/master/syncthing.png

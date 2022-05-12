@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------
 # Thumbnailer for APK archives files
 # Display embedded icon and version number (option)
@@ -9,10 +9,9 @@
 #   * unzip
 #   * aapt
 #   * pngtopnm, pnmtopng, pnmcrop, pnmpad, pnmscalefixed and pnmcomp (netpbm package)
-#   * gvfs-copy (gvfs-bin package)
 # Parameters :
-#   $1 - URI of APK archive
-#   $2 - full path of generated thumbnail
+#   $1 - path of APK archive
+#   $2 - path of generated thumbnail
 #   $3 - height of thumbnail in pixels
 # Revision history :
 #   04/08/2013, V1.0 - Creation by N. Bernaerts
@@ -21,50 +20,33 @@
 #   06/11/2014, V2.1 - Don't use renamed aapt anymore
 #   15/11/2014, V3.0 - Use URI to handle network shares
 #   07/10/2017, V3.1 - Speedup with netpbm tools
+#   15/12/2018, V3.2 - Rework for bubblewrap compatibility
 # ---------------------------------------------------
 
-# check tools availability 
-command -v aapt >/dev/null 2>&1 || exit 1
-command -v unzip >/dev/null 2>&1 || exit 1
-command -v pnmcrop >/dev/null 2>&1 || exit 1
-command -v pnmpad >/dev/null 2>&1 || exit 1
-command -v pngtopnm >/dev/null 2>&1 || exit 1
-command -v pnmscalefixed >/dev/null 2>&1 || exit 1
-command -v pnmcomp >/dev/null 2>&1 || exit 1
-command -v pnmtopng >/dev/null 2>&1 || exit 1
+# check tools availability
+command -v aapt >/dev/null 2>&1 || { echo "[error] aapt missing"; exit 1; }
+command -v unzip >/dev/null 2>&1 || { echo "[error] unzip missing"; exit 1; }
+command -v pbmtextps >/dev/null 2>&1 || { echo "[error] pbmtextps missing"; exit 1; }
+command -v pnmcrop >/dev/null 2>&1 || { echo "[error] pnmcrop missing"; exit 1; }
+command -v pnmpad >/dev/null 2>&1 || { echo "[error] pnmpad missing"; exit 1; }
+command -v pngtopnm >/dev/null 2>&1 || { echo "[error] pngtopnm missing"; exit 1; }
+command -v pnmscalefixed >/dev/null 2>&1 || { echo "[error] pnmscalefixed missing"; exit 1; }
+command -v pnmcomp >/dev/null 2>&1 || { echo "[error] pnmcomp missing"; exit 1; }
+command -v pnmtopng >/dev/null 2>&1 || { echo "[error] pnmtopng missing"; exit 1; }
+
+# check params
+[ "$3" = "" ] && { echo "[error] 3 params are needed : file file-thumb thumb-size"; exit 1; }
 
 # set to no to remove version number on the icon
 DISPLAY_VERSION="yes"
 
 # get parameters
-FILE_URI="$1"
+FILE_LOCAL="$1"
 FILE_THUMB="$2"
 SIZE="$3"
 
-# get filename extension
-FILE_EXT=$(echo "$FILE_URI" | sed 's/^.*\.\(.*\)/\1/')
-
 # generate temporary local filename
-TMP_LOCAL=$(mktemp -t XXXXXXXX.${FILE_EXT})
-TMP_PNM=$(mktemp -t XXXXXXXX.pnm)
-
-# if file is a remote one
-URI_TYPE="${FILE_URI:0:4}"
-if [ "${URI_TYPE}" = "file" ]
-then
-	# convert URI to local path
-	FILE_PATH=$(printf '%b' "${FILE_URI//%/\\x}")
-
-	# extract local path
-	FILE_LOCAL="${FILE_PATH:7}"
-else
-	# check gvfs-copy availability
-	command -v gvfs-copy >/dev/null 2>&1 || exit 1
-
-	# copy input file to temporary local file
-	gvfs-copy "${FILE_URI}" "${TMP_LOCAL}"
-	FILE_LOCAL="${TMP_LOCAL}"	
-fi
+TMP_PNM=$(mktemp -t "thumb-apk-XXXXXXXX.pnm")
 
 # get application icon
 ICON=$(aapt d badging "${FILE_LOCAL}" | grep "application-icon" | sed 's/^.*icon-\(.*\):.\(.*\).$/\2/' | tail -1)
@@ -95,4 +77,4 @@ then
 fi
 
 # remove temporary local file
-rm ${TMP_LOCAL} ${TMP_PNM}
+rm -f "${TMP_PNM}"

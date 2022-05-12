@@ -12,11 +12,14 @@ sudo chmod +x /usr/local/bin/mozilla-extension-manager
 # AdBlockPlus
 mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/latest/1865/addon-1865-latest.xpi
 
-# AppLauncher
-mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/latest/61268/addon-61268-latest.xpi
-
 # FlashDisable
 mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/latest/383235/addon-383235-latest.xpi
 
-# Print PDF
-mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/latest/5971/platform:5/addon-5971-latest.xpi
+# Print Friendly and PDF
+mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/latest/print-friendly-pdf/platform:5/addon-465349-latest.xpi
+
+# Video DownloadHelper
+mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/latest/video-downloadhelper/addon-3006-latest.xpi
+
+# Empty cache button
+mozilla-extension-manager --user --install https://addons.mozilla.org/firefox/downloads/file/782571/empty_cache_button-3.4-an+fx.xpi

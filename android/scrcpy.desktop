@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Exec=scrcpy
+Hidden=false
+NoDisplay=false
+Icon=phone
+Keywords=scrcpy;mirror;android;phone;display;genymobile;
+X-GNOME-Autostart-enabled=true
+Name=Mirror Android Display
+Name[fr_FR]=Miroir d'écran Android
+Comment=Tool to manage your Android phone display straight from your computer.
+Comment[fr_FR]=Visualisation et intéraction de votre smartphone Android.
+MimeType=
+Categories=GNOME;GTK;Viewer;Graphics;Utility;

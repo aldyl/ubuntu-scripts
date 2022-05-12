@@ -1,13 +1,22 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # -------------------------------------------------------
 # Script to install Sweet Home 3D
 # -------------------------------------------------------
 
 # sweethome3d
-sudo apt-get -y install libjava3d-java
+sudo apt -y install libjava3d-java
 
-# install latest version under $HOME/.local/apps/SweetHome3D
-wget -O sweethome3d.tgz https://kent.dl.sourceforge.net/project/sweethome3d/SweetHome3D/SweetHome3D-5.5.2/SweetHome3D-5.5.2-linux-x64.tgz
+# get latest linux 64 version download link from sourceforge home page (2 steps)
+SITE="https://sourceforge.net"
+URL="/projects/sweethome3d/files/SweetHome3D/"
+wget -O "index.html" "${SITE}${URL}"
+URL=$(grep "files_name_h" "index.html" | grep "sweethome3d" | head -n 1 | sed "s|^.*href=.\([^\"]*\).*$|\1|")
+wget -O "index.html" "${SITE}${URL}"
+URL=$(grep "files_name_h" "index.html" | grep "linux-x64" | sed "s|^.*href=.\([^\"]*\).*$|\1|")
+wget -O "sweethome3d.tgz" "${URL}"
+rm ./index.html
+
+# instal it under $HOME/.local/apps/SweetHome3D
 tar -xvf sweethome3d.tgz
 sudo mv SweetHome3D-* /opt/sweethome3d
 sudo chown -R root:root /opt/sweethome3d
@@ -25,5 +34,6 @@ sudo wget -O /usr/share/applications/sweethome3d.desktop https://raw.githubuserc
 sudo chmod +x /usr/share/applications/sweethome3d.desktop
 
 # associate mimetype to desktop file
-ASSOCIATION=$(grep "application/sweethome3d=" "$HOME/.local/share/applications/mimeapps.list")
-[ "${ASSOCIATION}" = "" ] && echo "application/sweethome3d=sweethome3d.desktop" >> "$HOME/.local/share/applications/mimeapps.list"
+MIMEFILE="$HOME/.local/share/applications/mimeapps.list"
+[ -f "${MIMEFILE}" ] && ASSOCIATION=$(grep "application/sweethome3d=" "${MIMEFILE}") || ASSOCIATION=""
+[ "${ASSOCIATION}" = "" ] && echo "application/sweethome3d=sweethome3d.desktop" >> "${MIMEFILE}"

@@ -1,5 +1,5 @@
 #!/bin/sh
-# APK thumbnailer
+# APK thumbnailer installation script
 
 # test Ubuntu distribution
 DISTRO=$(lsb_release -is 2>/dev/null)
@@ -7,6 +7,10 @@ DISTRO=$(lsb_release -is 2>/dev/null)
 
 # install tools
 sudo apt-get -y install gvfs-bin aapt unzip netpbm
+
+# install bubblewrap wrapper to handle Nautilus 3.26.4+ bug for external thumbnailers
+sudo wget -O /usr/local/bin/bwrap https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/nautilus/bwrap
+sudo chmod +rx /usr/local/bin/bwrap
 
 # install main script
 sudo wget --header='Accept-Encoding:none' -O /usr/local/sbin/apk-thumbnailer https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/thumbnailer/apk/apk-thumbnailer
@@ -19,5 +23,5 @@ sudo wget --header='Accept-Encoding:none' -O /usr/share/thumbnailers/apk.thumbna
 nautilus -q
 
 # empty cache of previous thumbnails
-[ -d "$HOME/.cache/thumbnails" ] && rm -R $HOME/.cache/thumbnails/*
-[ -d "$HOME/.thumbnails" ] && rm -R $HOME/.thumbnails/*
+[ -d "$HOME/.cache/thumbnails" ] && rm --recursive --force $HOME/.cache/thumbnails/*
+[ -d "$HOME/.thumbnails" ] && rm --recursive --force $HOME/.thumbnails/*

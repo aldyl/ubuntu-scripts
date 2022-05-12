@@ -1,84 +1,89 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------
 # Thumbnailer for LibreOffice & OpenOffice documents
 #
 # Procedure :
 #   http://bernaerts.dyndns.org/linux/76-gnome/285-gnome-shell-generate-libreoffice-thumbnail-nautilus
 # Depends on :
+#   * libreoffice or soffice
 #   * mimetype
 #   * unzip
 #   * pbmmake, pngtopnm, pnmtopng, pnmscalefixed and pnmcomp (netpbm package)
-#   * gvfs-copy (gvfs-bin package)
 # Parameters :
-#   $1 - URI of office file
-#   $2 - full path of generated thumbnail
+#   $1 - path of office file
+#   $2 - path of generated thumbnail
 #   $3 - height of thumbnail in pixels
 # Revision history :
 # 04/08/2013, V1.0 - Creation by N. Bernaerts
 # 15/11/2014, V2.0 - Use URI to handle network shares
 # 07/10/2017, V2.1 - Speedup with netpbm tools
+# 09/03/2018, V3.0 - Add flat XML files support
+# 12/03/2018, V3.1 - Handle libreoffice and soffice binaries
+# 08/11/2018, V3.2 - Handle gio and gvfs-copy tools
+# 11/12/2018, V3.3 - Rework for bubblewrap compatibility (thanks to Li Chong)
 # ---------------------------------------------------
 
-# check tools availability
-command -v mimetype >/dev/null 2>&1 || exit 1
-command -v unzip >/dev/null 2>&1 || exit 1
-command -v pbmmake >/dev/null 2>&1 || exit 1
-command -v pngtopnm >/dev/null 2>&1 || exit 1
-command -v pnmscalefixed >/dev/null 2>&1 || exit 1
-command -v pnmcomp >/dev/null 2>&1 || exit 1
-command -v pnmtopng >/dev/null 2>&1 || exit 1
+# check libreoffice availability
+CMD_OFFICE="libreoffice"
+command -v "${CMD_OFFICE}" >/dev/null 2>&1 || CMD_OFFICE="soffice"
+command -v "${CMD_OFFICE}" >/dev/null 2>&1 || { echo "[error] libreoffice missing"; exit 1; }
 
-# path where to get icons used for generation
-ICONPATH="/usr/local/sbin/lo-thumbnailer-icons"
+# check tools availability
+command -v mimetype >/dev/null 2>&1 || { echo "[error] mimetype missing"; exit 1; }
+command -v unzip >/dev/null 2>&1 || { echo "[error] unzip missing"; exit 1; }
+command -v pbmmake >/dev/null 2>&1 || { echo "[error] pbmmake missing"; exit 1; }
+command -v pngtopnm >/dev/null 2>&1 || { echo "[error] pngtopnm missing"; exit 1; }
+command -v pnmscalefixed >/dev/null 2>&1 || { echo "[error] pnmscalefixed missing"; exit 1; }
+command -v pnmcomp >/dev/null 2>&1 || { echo "[error] pnmcomp missing"; exit 1; }
+command -v pnmtopng >/dev/null 2>&1 || { echo "[error] pnmtopng missing"; exit 1; }
+
+# check params
+[ "$3" = "" ] && { echo "[error] 3 params are needed : file file-thumb thumb-size"; exit 1; }
 
 # get parameters
-SCRIPT_NAME=$(basename $0)
-FILE_URI="$1"
+FILE_LOCAL="$1"
 FILE_THUMB="$2"
 SIZE="$3"
 
-# set working path
-PATH_SYSTEM="/usr/local/sbin/${SCRIPT_NAME}.res"
-PATH_CACHE="$HOME/.cache/${SCRIPT_NAME}"
-[ ! -d "${PATH_CACHE}" ] && mkdir --parent "${PATH_CACHE}"
+# system ressources
+PATH_SYSTEM="/usr/local/sbin/lo-thumbnailer.res"
+[ ! -d "${PATH_SYSTEM}" ] && { echo "[error] directory ${PATH_SYSTEM} missing"; exit 1; }
 
-# get filename extension
-FILE_EXT=$(echo "${FILE_URI}" | sed "s/^.*\.\(.*\)/\1/")
-
-# generate temporary local filename
-TMP_LOCAL=$(mktemp -t "XXXXXXXX.${FILE_EXT}")
-TMP_PNM=$(mktemp -t "XXXXXXXX.pnm")
-
-# if file is a remote one
-URI_TYPE="${FILE_URI:0:4}"
-if [ "${URI_TYPE}" = "file" ]
-then
-	# convert URI to local path
-	FILE_PATH=$(printf '%b' "${FILE_URI//%/\\x}")
-
-	# extract local path
-	FILE_LOCAL="${FILE_PATH:7}"
-else
-	# check gvfs-copy availability
-	command -v gvfs-copy >/dev/null 2>&1 || exit 1
-
-	# copy input file to temporary local file
-	gvfs-copy "${FILE_URI}" "${TMP_LOCAL}"
-	FILE_LOCAL="${TMP_LOCAL}"	
-fi
+# generate temporary files and directory
+TMP_DIR=$(mktemp -t -d "thumb-lo-XXXXXXXX")
+TMP_PNM="${TMP_DIR}/original.pnm"
+TMP_THUMB="${TMP_DIR}/thumbnail.pnm"
 
 # get document type (text, spreadsheet, graphics or presentation)
-DOC_TYPE=$(mimetype -b "${FILE_LOCAL}" | sed 's/.*: //' | sed 's/^.*opendocument.\([^-]*\).*/\1/')
+DOC_TYPE=$(mimetype -b "${FILE_LOCAL}" | sed 's/.*: //' | sed 's/^.*opendocument.\([^-]*\).*/\1/' | cut -d'-' -f1)
 
-# if needed, create tag and mask
-DOC_TAG="${PATH_CACHE}/${SIZE}-${DOC_TYPE}.pnm"
-DOC_ALPHA="${PATH_CACHE}/${SIZE}-${DOC_TYPE}-alpha.pnm"
-[ ! -f "${DOC_TAG}" ] && pngtopnm "${PATH_SYSTEM}/lo-${DOC_TYPE}.png" | pnmscalefixed -xysize ${SIZE} ${SIZE} - > "${DOC_TAG}"
-[ ! -f "${DOC_ALPHA}" ] && pngtopnm -alpha "${PATH_SYSTEM}/lo-${DOC_TYPE}.png" | pnmscalefixed -xysize ${SIZE} ${SIZE} - > "${DOC_ALPHA}"
+# get document tag and mask
+DOC_TAG="${PATH_SYSTEM}/lo-${DOC_TYPE}.pnm"
+DOC_ALPHA="${PATH_SYSTEM}/lo-${DOC_TYPE}-alpha.pnm"
 
-# generate thumbnail according to document type
-unzip -p "${FILE_LOCAL}" "Thumbnails/thumbnail.png" | pngtopnm > "${TMP_PNM}"
-pbmmake -white 208 256 | pnmcomp -align center -valign middle "${TMP_PNM}" - | pnmscalefixed -xysize ${SIZE} ${SIZE} - | pnmcomp -align center -valign middle -alpha "${DOC_ALPHA}" "${DOC_TAG}" - | pnmtopng -downscale -compression 0 - > "${FILE_THUMB}"
+# if file is zipped, extract thumbnail
+IS_ZIPPED=$(file -ib "${FILE_LOCAL}" | cut -d';' -f2 | grep "binary")
+if [ "${IS_ZIPPED}" != "" ]
+then
+	# extract thumbnail from zipped document
+	unzip -p "${FILE_LOCAL}" "Thumbnails/thumbnail.png" | pngtopnm > "${TMP_PNM}"
 
-# remove temporary local file
-rm "${TMP_LOCAL}" "${TMP_PNM}"
+# else, file is a flat one, generate thumbnail
+else
+	# convert first page to PNG
+	${CMD_OFFICE} "-env:UserInstallation=file://${TMP_DIR}" --headless --convert-to png --outdir "${TMP_DIR}" "${FILE_LOCAL}"
+
+	# convert PNG to PNM
+	FILE_NAME=$(basename "${FILE_LOCAL}")
+	FILE_NAME="${FILE_NAME%.*}"
+	pngtopnm "${TMP_DIR}/${FILE_NAME}.png" | pnmscalefixed -xysize 256 256 - > "${TMP_PNM}"
+fi
+
+# generate 256x256 thumbnail with masks
+pbmmake -white 208 256 | pnmcomp -align center -valign middle "${TMP_PNM}" - | pnmcomp -align center -valign middle -alpha "${DOC_ALPHA}" "${DOC_TAG}" - > "${TMP_THUMB}"
+
+# downscale to final size and convert to png
+pnmscalefixed -xysize ${SIZE} ${SIZE} "${TMP_THUMB}" | pnmtopng -downscale - > "${FILE_THUMB}"
+
+# remove temporary directory
+rm -r "${TMP_DIR}"

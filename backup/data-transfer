@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------------------------
 #  Script to backup/restore current user folders and application data
 #  on any removable media during computer complete reinstallation
@@ -14,6 +14,7 @@
 #   10/04/2017, V1.2 - Add docky
 #   17/04/2017, V2.0 - Complete rewrite, based on .ini configuration
 #   15/09/2017, V2.1 - Add dconf handling
+#   11/11/2019, V2.2 - Download default .ini file is absent
 # ---------------------------------------------------------------------
 
 # default to normal mode
@@ -31,7 +32,8 @@ command -v gconftool-2 >/dev/null 2>&1 || { echo "Please install gconftool-2 uti
 command -v tar >/dev/null 2>&1 || { echo "Please install tar utility"; exit 1; }
 
 # check configuration file
-[ -f "${CONF_INI}" ] || { echo "Configuration file ${CONF_INI} is missing"; exit 1; }
+[ ! -f "${CONF_INI}" ] && wget -O "${CONF_INI}" https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/backup/data-transfer.ini
+[ ! -f "${CONF_INI}" ] && { echo "Configuration file ${CONF_INI} is not available"; exit 1; }
 
 # load sections
 ARR_SECTION=( $(grep "^\[" "${CONF_INI}" | tr -d "[]") )

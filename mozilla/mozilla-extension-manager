@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ------------------------------------------------------------------------
 #  Command line script to handle Firefox and Thunderbird extensions
 #  Manage installation, upgrade and removal of system wide and user extensions
@@ -15,6 +15,7 @@
 #  17/05/2017  V2.3 - Rewrite, add path parameters, read UID and name in different ways
 #  25/05/2017  V2.4 - Add --update and --list parameters
 #  05/09/2017  V2.5 - Change handling of sudo commands for more compatibility
+#  15/02/2018  V2.6 - Add download failure handling thanks to Rene Nyffenegger
 # ------------------------------------------------------------------------
 
 # --------------
@@ -221,7 +222,11 @@ then
 	then
 		cp "${EXT_URL#file://}" "${ADDON_XPI}"
 	else
+		# download extension
 		wget --quiet -O "${ADDON_XPI}" "${EXT_URL}"
+		
+		# check for failure
+		[ $? -ne 0 ] && { echo "[error] Could not download ${EXT_URL}"; exit 1; }
 	fi
 
 	# extract extension UID
@@ -242,7 +247,7 @@ fi
 if [ "${EXT_ACTION}" = "list" ]
 then
 	# list installed XPI files
-	ARR_XPI=( $(ls ${EXT_PATH}/*.xpi) )
+	ARR_XPI=( $(ls ${EXT_PATH}/*.xpi ${EXT_PATH}/../*.xpi 2>/dev/null) )
 
 	# loop thru installed XPI
 	for FILE_XPI in "${ARR_XPI[@]}"
@@ -305,7 +310,7 @@ else
 	fi
 
 	# copy .xpi to system extension path
-	[ "${EXT_TYPE}" = "user" ] && cp -f "${ADDON_XPI}" "${EXT_PATH}/../${EXT_UID}.xpi" \
+	[ "${EXT_TYPE}" = "user" ] && mkdir -p "${EXT_PATH}/.." && cp -f "${ADDON_XPI}" "${EXT_PATH}/../${EXT_UID}.xpi" \
 	                           || sudo cp -f "${ADDON_XPI}" "${EXT_PATH}/../${EXT_UID}.xpi"
 
 	# extract extension to system extension path

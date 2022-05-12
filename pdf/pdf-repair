@@ -1,56 +1,111 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------
 # Repair broken PDF file using gs
 #
 # Depends on :
 #   * ghostscript
-#   * gvfs-bin
-#   * libnotify-bin
-#   * zenity
+#   * mupdf-tools
 #
 # Parameter :
-#   $1 - full path of original PDF
+#   $1 - URI of original PDF
 #
 # Revision history :
 #   08/11/2014, V1.0 - Creation by N. Bernaerts
 #   20/11/2014, V1.1 - Add file selection dialog box
 #   24/01/2015, V1.2 - Check tools availability
+#   24/11/2017, V2.0 - Add MuTool repair method (thank to Willie Wildgrube idea)
+#   01/05/2020, V2.1 - Add method selection with --method
+#                      Adaptation for Ubuntu 20.04 LTS 
+#   07/05/2020, V2.2 - Multiple files management 
 # ---------------------------------------------------
 
-# check tools availability
-command -v gvfs-copy >/dev/null 2>&1 || { zenity --error --text="Please install gvfs-copy [gvfs-bin]"; exit 1; }
-command -v gs >/dev/null 2>&1 || { zenity --error --text="Please install gs [ghostscript]"; exit 1; }
-command -v notify-send >/dev/null 2>&1 || { zenity --error --text="Please install notify-send [libnotify-bin]"; exit 1; }
+# variable
+ERROR=""
+METHOD="ghostscript"
 
-# check if parameter is given, otherwise open dialog box selection
-[ "$1" != "" ] && ORG_URI="$1" || ORG_URI=$(zenity --file-selection --title="Select PDF file to repair")
-
-# if a PDF file is selected
-if [ "$ORG_URI" != "" ]
+# if no argument, display help
+if [ $# -eq 0 ] 
 then
-  # generate corrected document name
-  ORG_BASE=$(echo "$ORG_URI" | sed 's/^\(.*\)\..*$/\1/')
-  ORG_EXT=$(echo "$ORG_URI" | sed 's/^.*\.\(.*\)$/\1/')
-  NEW_URI="$ORG_BASE-repaired.$ORG_EXT"
-
-  # generate temporary local filename
-  ORG_TMP=$(mktemp -t XXXXXXXX.${ORG_EXT})
-  NEW_TMP=$(mktemp -t XXXXXXXX.${ORG_EXT})
-
-  # copy input file to temporary local file
-  gvfs-copy "${ORG_URI}" "${ORG_TMP}"
-
-  # generate corrected PDF
-  gs -q -dNOPAUSE -dBATCH -dSAFER -sDEVICE=pdfwrite -sOutputFile="${NEW_TMP}" "${ORG_TMP}"
-
-  # copy back corrected file
-  gvfs-copy "${NEW_TMP}" "${NEW_URI}"
-
-  # remove temporary local files
-  rm ${ORG_TMP}
-  rm ${NEW_TMP}
-
-  # send desktop notification
-  NEW_NAME=$(echo "$NEW_URI" | sed 's/^.*\/\(.*\)$/\1/')
-  notify-send "Repaired PDF is $NEW_NAME"
+	echo "Tool to repair a PDF documents"
+	echo "Parameters are :"
+	echo "  --method <method>   Reparation method (ghostscrit or mutool)"
+	echo "  <file1> <file2>     Files to repair"
+	exit 1
 fi
+
+# iterate thru parameters
+while test ${#} -gt 0
+do
+	case $1 in
+		--method) shift; METHOD="$1"; shift; ;;
+		*) ARR_FILE=( "${ARR_FILE[@]}" "$1" ); shift; ;;
+    esac
+done
+
+# --------------------------
+# check tools availability
+# --------------------------
+
+# check tools availability
+command -v gs >/dev/null 2>&1 || { zenity --error --text="Please install gs [ghostscript]"; exit 1; }
+command -v mutool >/dev/null 2>&1 || { zenity --error --text="Please install mutool [mupdf-tools]"; exit 1; }
+
+# generate temporary directory
+TMP_DIR=$(mktemp -t -d "pdf-repair-XXXXXXXX")
+TMP_ORIGINAL="${TMP_DIR}/original.pdf"
+TMP_REPAIRED="${TMP_DIR}/repaired.pdf"
+pushd "${TMP_DIR}"
+
+# check at least one file is provided
+NBR_FILE=${#ARR_FILE[@]}
+[ "${ERROR}" = "" -a ${NBR_FILE} -eq 0 ] && ERROR="No file selected"
+
+# check repair method
+[ "${ERROR}" = "" -a "${METHOD}" != "ghostscript" -a "${METHOD}" != "mutool" ] && ERROR="Unknown repair tool"
+
+# --------------------
+#   PDF repair
+# --------------------
+
+# loop thru image files
+if [ "${ERROR}" = "" ] 
+then
+	(
+	INDEX=0
+	for ORIGINAL_URI in "${ARR_FILE[@]}"
+	do
+		# increment file index
+		INDEX=$((INDEX+1))
+
+		# generate filenames
+		ORIGINAL_DIR=$(dirname "${ORIGINAL_URI}")
+		ORIGINAL_FILE=$(basename "${ORIGINAL_URI}")
+
+		# copy input file to temporary folder
+		echo "# ${INDEX} / ${NBR_FILE} - Copy of original PDF document ..."
+		gio copy "${ORIGINAL_URI}" "${TMP_ORIGINAL}"
+	
+		# repair PDF
+		echo "# ${INDEX} / ${NBR_FILE} - Repair original PDF using ${METHOD} ..."
+		[ "${METHOD}" = "ghostscript" ] && gs -q -dNOPAUSE -dBATCH -dSAFER -sDEVICE=pdfwrite -sOutputFile="${TMP_REPAIRED}" "${TMP_ORIGINAL}" \
+		                                || mutool clean "${TMP_ORIGINAL}" "${TMP_REPAIRED}"
+
+		# place corrected file side to original 
+		echo "# ${INDEX} / ${NBR_FILE} - Copy of repaired PDF ..."
+		gio copy "${TMP_REPAIRED}" "${ORIGINAL_DIR}/${ORIGINAL_NAME}-repaired.pdf"
+	done
+	
+	) | zenity --width=500 --height=25 --progress --pulsate --auto-close --title "Repair PDF" --window-icon="/usr/share/icons/pdf-repair.png"
+fi
+
+# -------------------
+#   End of operation
+# -------------------
+
+# display error message
+[ "${ERROR}" != "" ] && zenity --error --width=600 --text="${ERROR}"
+
+# remove temporary directory
+popd
+rm -r "${TMP_DIR}"
+

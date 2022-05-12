@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# -------------------------------------------------------------------------------
+#  Modify ImageMagick configuration file to allow PDF and PostScript generation
+#
+#  Revision history :
+#    06/10/2018, V1.0 - Creation by N. Bernaerts
+#    02/05/2020, V1.1 - Increase memory limit by 8 factor
+# -------------------------------------------------------------------------------
+
+# initialisation
+CONF_FILE="/etc/ImageMagick-6/policy.xml"
+
+# if imagemagick configuration file exists
+if [ -f "${CONF_FILE}" ]
+then
+  # remove culprit lines
+  sudo sed -i '/disable ghostscript format types/d' "${CONF_FILE}"
+  sudo sed -i '/\"PS\"/d' "${CONF_FILE}"
+  sudo sed -i '/\"EPS\"/d' "${CONF_FILE}"
+  sudo sed -i '/\"PDF\"/d' "${CONF_FILE}"
+  sudo sed -i '/\"XPS\"/d' "${CONF_FILE}"
+
+  # increase memory limit by 8 factor
+  sudo sed -i 's|16KP|128KP|g' "${CONF_FILE}"
+  sudo sed -i 's|128MP|1024MP|g' "${CONF_FILE}"
+  sudo sed -i 's|256MiB|2GiB|g' "${CONF_FILE}"
+  sudo sed -i 's|512MiB|4GiB|g' "${CONF_FILE}"
+  sudo sed -i 's|1GiB|8GiB|g' "${CONF_FILE}"
+
+  # log and display
+  logger "ImageMagick PDF and PostScript restriction removal"
+  echo "ImageMagick PDF and PostScript restriction removal"
+fi

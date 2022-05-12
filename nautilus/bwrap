@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# bwrap wrapper to correct nautilus 3.26.4+ bug for external thumbnailers under debian based distros
+#  * add --ro-bind needed by imagemagick tools
+#  * replaces --symlink calls with equivalent --ro-bind calls
+
+# intialise parameters array
+ARR_PARAM=( )
+
+# since editing /usr/local/bin requires root privilege, we can trust it
+[ -d "/usr/local/bin" ] && ARR_PARAM=( "${ARR_PARAM[@]}" "--ro-bind" "/usr/local/bin" "/usr/local/bin" )
+
+# add both --ro-bind needed by thumbnailers using imagemagick tools
+[ -d "/etc/alternatives" ] && ARR_PARAM=( "${ARR_PARAM[@]}" "--ro-bind" "/etc/alternatives" "/etc/alternatives" )
+[ -d "/etc/ImageMagick-6" ] && ARR_PARAM=( "${ARR_PARAM[@]}" "--ro-bind" "/etc/ImageMagick-6" "/etc/ImageMagick-6" )
+[ -d "/var/cache/fontconfig" ] && ARR_PARAM=( "${ARR_PARAM[@]}" "--ro-bind" "/var/cache/fontconfig" "/var/cache/fontconfig" )
+
+# if exists, enable $TMPDIR
+[ -n "${TMPDIR}" ] && [ -d "${TMPDIR}" ] && ARR_PARAM=( "${ARR_PARAM[@]}" "--bind" "${TMPDIR}" "${TMPDIR}" )
+
+# loop thru original parameters
+while test $# -gt 0
+do
+	case "$1" in
+		# --symlink : convert to --ro-bind
+		"--symlink") shift; shift; ARR_PARAM=( "${ARR_PARAM[@]}" "--ro-bind" "$1" "$1" ); shift; ;;
+		# others : add parameter
+		*) ARR_PARAM=( "${ARR_PARAM[@]}" "$1" ); shift; ;;
+	esac
+done
+
+# call original bwrap
+/usr/bin/bwrap "${ARR_PARAM[@]}"

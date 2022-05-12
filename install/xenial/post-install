@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------------------------------------
 #  Ubuntu 16.04 LTS Post-installation script
 #
@@ -9,6 +9,7 @@
 #  20/08/2016, V2.0 - Complete rework to merge different distribution post-install
 #  27/09/2016, V2.1 - Add GoPro USB mount bug correction
 #  26/12/2016, V2.2 - Add Docky launcher option
+#  15/01/2018, V2.3 - Add apport disabling
 # ---------------------------------------------------------------------------------
 
 # ---------------------------------------------------
@@ -18,12 +19,19 @@
 DISTRI_NAME="xenial"
 
 # ---------------------------------------------------
+# ------------ Distribution detection ---------------
+# ---------------------------------------------------
+
+RESULT=$(cat /etc/lsb-release | grep "DISTRIB_CODENAME" | cut -d'=' -f2-)
+[ "${RESULT}" != "${DISTRI_NAME}" ] && { echo "Distribution is ${RESULT}. This script is for ${DISTRI_NAME}"; exit 1; }
+
+# ---------------------------------------------------
 # ------------ Architecture detection ---------------
 # ---------------------------------------------------
 
 RESULT=$(uname -a | grep x86_64)
-[ "$RESULT" != "" ] && ARCHI="amd64" || ARCHI="i386"
-[ "$ARCHI" = "amd64" ] && X86ARCHI="64" || X86ARCHI="32"
+[ "${RESULT}" != "" ] && ARCHI="amd64" || ARCHI="i386"
+[ "${ARCHI}" = "amd64" ] && X86ARCHI="64" || X86ARCHI="32"
 
 # ---------------------------------------------------
 # -------------- Parameters handling ----------------
@@ -44,23 +52,25 @@ then
     echo "  --touchpad        Add some tweaks for trackpad"
     echo "  --assistance      Add remote assistance tools"
     echo "  --gopro           Add GoPro bug correction"
+    echo "  --hp-printer      Add HP printer GUI"
     exit 1
 fi
 
 # iterate thru parameters
 while test ${#} -gt 0
 do
-  case $1 in
-    --ubuntu) DISTRI_TYPE="UBUNTU"; shift; ;;
-    --ubuntugnome) DISTRI_TYPE="UBUNTUGNOME"; shift; ;;
-    --docky) DOCKY="ok"; shift; ;;
-    --wifi) WIFI="ok"; shift; ;;
-    --ssd) SSD="ok"; shift; ;;
-    --touchpad) TOUCHPAD="ok"; shift; ;;
-    --assistance) ASSIST="ok"; shift; ;;
-    --gopro) GOPRO="ok"; shift; ;;
-    *) shift; ;;
-  esac
+    case $1 in
+        --ubuntu) DISTRI_TYPE="UBUNTU"; shift; ;;
+        --ubuntugnome) DISTRI_TYPE="UBUNTUGNOME"; shift; ;;
+        --docky) DOCKY="ok"; shift; ;;
+        --wifi) WIFI="ok"; shift; ;;
+        --ssd) SSD="ok"; shift; ;;
+        --touchpad) TOUCHPAD="ok"; shift; ;;
+        --assistance) ASSIST="ok"; shift; ;;
+        --gopro) GOPRO="ok"; shift; ;;
+        --hp-printer) HPPRINTER="ok"; shift; ;;
+        *) shift; ;;
+    esac
 done
 
 # ---------------------------------------------------
@@ -73,79 +83,8 @@ sudo sh -c 'echo "\nDefaults timestamp_timeout=-1" >> /etc/sudoers'
 # --------------- Full System Update ----------------
 # ---------------------------------------------------
 
-sudo apt-get update
-sudo apt-get -y dist-upgrade
-
-# ---------------------------------------------------
-# ----------------- Common Packages  ----------------
-# ---------------------------------------------------
-
-# office tools
-wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/office
-chmod +x ./office
-./office
-rm ./office
-
-# graphical tools
-wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/graphical
-chmod +x ./graphical
-./graphical
-rm ./graphical
-
-# multimedia tools
-wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/multimedia
-chmod +x ./multimedia
-./multimedia
-rm ./multimedia
-
-# internet tools
-wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/internet
-chmod +x ./internet
-./internet
-rm ./internet
-
-# android tools
-wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/android
-chmod +x ./android
-./android
-rm ./android
-
-# misc utilities and tools
-wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/utilities
-chmod +x ./utilities
-./utilities
-rm ./utilities
-
-# ---------------------------------------------------
-# -----------------  Common options  ----------------
-# ---------------------------------------------------
-
-# wifi tweaks
-if [ "${WIFI}" = "ok" ]
-then
-  wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/wifi
-  chmod +x ./wifi
-  ./wifi
-  rm ./wifi
-fi
-
-# SSD tweaks
-if [ "${SSD}" = "ok" ]
-then
-  wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/ssd
-  chmod +x ./ssd
-  ./ssd
-  rm ./ssd
-fi
-
-# remote assistance
-if [ "${ASSIST}" = "ok" ]
-then
-  wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/assistance
-  chmod +x ./assistance
-  ./assistance
-  rm ./assistance
-fi
+sudo apt update
+sudo apt -y upgrade
 
 # ---------------------------------------------------
 # -------------  Distribution specific  -------------
@@ -153,50 +92,127 @@ fi
 
 case ${DISTRI_TYPE} in
     "UBUNTU") 
-      # gnome session fallback
-      wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/gnome-fallback
-      chmod +x ./gnome-fallback
-      ./gnome-fallback
-      rm ./gnome-fallback
-      ;;
+        # gnome session fallback
+        wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/gnome-fallback
+        chmod +x gnome-fallback
+        ./gnome-fallback
+        rm gnome-fallback
+        ;;
     "UBUNTUGNOME") 
-      # gnomeshell
-      wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/gnome-shell
-      chmod +x ./gnome-shell
-      ./gnome-shell
-      rm ./gnome-shell
-      ;;
+        # gnomeshell
+        wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/gnome-shell
+        chmod +x gnome-shell
+        ./gnome-shell
+        rm gnome-shell
+        ;;
     *) 
-      ;;
+        ;;
 esac
 
 # ---------------------------------------------------
-# ------------------ Common options -----------------
+# ----------------- Common Packages  ----------------
 # ---------------------------------------------------
+
+# utilities and tools
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/utilities
+chmod +x utilities
+./utilities
+rm utilities
+
+# office tools
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/office
+chmod +x office
+./office
+rm office
+
+# graphical tools
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/graphical
+chmod +x graphical
+./graphical
+rm graphical
+
+# multimedia tools
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/multimedia
+chmod +x multimedia
+./multimedia
+rm multimedia
+
+# internet tools
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/internet
+chmod +x internet
+./internet
+rm internet
+
+# android tools
+wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/android
+chmod +x android
+./android
+rm android
+
+# ---------------------------------------------------
+# -----------------  Common options  ----------------
+# ---------------------------------------------------
+
+# disable apport crash report
+sudo systemctl disable apport.service
+
+# wifi tweaks
+if [ "${WIFI}" = "ok" ]
+then
+    wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/wifi
+    chmod +x wifi
+    ./wifi
+    rm wifi
+fi
+
+# SSD tweaks
+if [ "${SSD}" = "ok" ]
+then
+    wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/ssd
+    chmod +x ssd
+    ./ssd
+    rm ssd
+fi
+
+# remote assistance
+if [ "${ASSIST}" = "ok" ]
+then
+    wget --header='Accept-Encoding:none' https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/install/${DISTRI_NAME}/assistance
+    chmod +x assistance
+    ./assistance
+    rm assistance
+fi
 
 # docky : add desktop launcher
 if [ "${DOCKY}" = "ok" ]
 then
-  wget https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/tools/docky-install.sh
-  chmod +x ./docky-install.sh
-  ./docky-install.sh
-  rm ./docky-install.sh
+    wget https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/tools/docky-install.sh
+    chmod +x docky-install.sh
+    ./docky-install.sh
+    rm docky-install.sh
 fi
 
 # touchpad : add palm detection
 if [ "${TOUCHPAD}" = "ok" ]
 then
-  sudo mkdir --parent /etc/X11/xorg.conf.d
-  sudo wget --header='Accept-Encoding:none' -O /etc/X11/xorg.conf.d/touchpad-palm.conf https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/X11/touchpad-palm.conf
+    sudo mkdir --parent /etc/X11/xorg.conf.d
+    sudo wget --header='Accept-Encoding:none' -O /etc/X11/xorg.conf.d/touchpad-palm.conf https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/X11/touchpad-palm.conf
 fi
 
 # correct GoPro USB mount under Xenial 
 if [ "${GOPRO}" = "ok" ]
 then
-  wget https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/nautilus/nautilus-xenial-gopro-install.sh
-  chmod +x ./nautilus-xenial-gopro-install.sh --install
-  ./nautilus-xenial-gopro-install.sh --install
-  rm ./nautilus-xenial-gopro-install.sh
+    wget https://raw.githubusercontent.com/NicolasBernaerts/ubuntu-scripts/master/nautilus/nautilus-xenial-gopro-install.sh
+    chmod +x nautilus-xenial-gopro-install.sh
+    ./nautilus-xenial-gopro-install.sh --install
+    rm nautilus-xenial-gopro-install.sh
+fi
+
+# HP printer GUI 
+if [ "${HPPRINTER}" = "ok" ]
+then
+    logger "hp printer - hplip"
+    sudo apt -y install hplip-gui
 fi
 
 # ---------------------------------------------------
@@ -204,11 +220,12 @@ fi
 # ---------------------------------------------------
 
 # packages
-sudo apt-get -y autoremove
-sudo apt-get -y autoclean
+sudo apt -y autoremove
+sudo apt -y autoclean
 
 # purge thumbnails cache
-rm -r $HOME/.thumbnails
+[ -d $HOME/.thumbnails ] && rm -r $HOME/.thumbnails/*
+[ -d $HOME/.cache/thumbnails ] && rm -r $HOME/.cache/thumbnails/*
 
 # ---------------------------------------------------
 # -------------- Enable sudo timeout ---------------

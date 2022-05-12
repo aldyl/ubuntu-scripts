@@ -1,0 +1,130 @@
+#!/bin/bash
+# SSHFS ressource mounting script
+# Handles SSHFS resource mount for environment given in $1
+# Configuration file used is $HOME/.config/sshfs-$1.conf
+
+# parameter
+SSHFS_NAME="$1"
+
+# configuration file
+[ "${SSHFS_NAME}" = "" ] && { zenity --error --text="Resource name parameter missing"; exit 1; }
+SSHFS_CONFIG="$HOME/.config/sshfs-${SSHFS_NAME}.conf"
+[ ! -f "${SSHFS_CONFIG}" ] && { zenity --error --text="${SSHFS_CONFIG} doesn't exist"; exit 1; }
+
+# check tools availability
+command -v nmap >/dev/null 2>&1 || { zenity --error --text="Please install nmap"; exit 1; }
+command -v sshfs >/dev/null 2>&1 || { zenity --error --text="Please install sshfs"; exit 1; }
+
+# retreive SSHFS configuration
+SSHFS_LABEL=$(grep "^label=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+SSHFS_ACCOUNT=$(grep "^account=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+FILE_MANAGER=$(grep "^file-manager=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+MOUNT_POINT=$(grep "^mount-point=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+
+(
+
+# test server
+echo "5"
+echo "# Initialisation ..."
+
+# get uid and gui
+USER_UID=$(id -u)
+USER_GID=$(id -g)
+
+# setup mount point
+MOUNT_POINT="$HOME/${MOUNT_POINT}"
+[ ! -d "${MOUNT_POINT}" ] && mkdir --parents "${MOUNT_POINT}"
+
+# loop to mount ressource
+INDEX=1
+SERVER_INDEX=0
+while [ ${INDEX} -gt 0 -a ${SERVER_INDEX} -eq 0 ]
+do
+	# read server config
+	SERVER_LABEL=$(grep "^${INDEX}-label=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+	SERVER_ADDRESS=$(grep "^${INDEX}-address=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+	SERVER_PORT=$(grep "^${INDEX}-port=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+	SERVER_PROTOCOL=$(grep "^${INDEX}-protocol=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+
+	# if server address is defined, test server
+	if [ "${SERVER_ADDRESS}" != "" ]
+	then
+		# display
+		echo "${INDEX}5"
+		echo "# ${SERVER_LABEL} - Checking connectivity ..."
+
+		# ping server
+		ping -c 1 -W 1 ${SERVER_ADDRESS}
+		SERVER_REACHED=$(nmap --max-retries 1 --host-timeout 5 -p${SERVER_PORT} "${SERVER_ADDRESS}" | grep "open")
+		[ "${SERVER_PROTOCOL}" != "" ] && SERVER_REACHED=$(echo "${SERVER_REACHED}" | grep "${SERVER_PROTOCOL}")
+
+		# if server reached, end of quest
+		if [ "${SERVER_REACHED}" != "" ]
+		then
+			# display
+			echo "${INDEX}8"
+			echo "# ${SERVER_LABEL} - Reachable"
+			SERVER_INDEX=${INDEX}
+			INDEX=0
+
+		# else try next server
+		else
+			# display
+			echo "${INDEX}8"
+			echo "# ${SERVER_LABEL} - Not reachable"
+			INDEX=$((INDEX + 1))
+		fi
+	# else
+	else
+		# end of quest
+		INDEX=0
+	fi
+done
+
+# if server is accessible
+if [ ${SERVER_INDEX} -gt 0 ]
+then
+	# unmount ressource if any
+	echo "50"
+	echo "# ${SERVER_LABEL} - Preparation of ${MOUNT_POINT} ..."
+	fusermount -uz "${MOUNT_POINT}"
+
+	# mount ressource
+	echo "60"
+	echo "# ${SERVER_LABEL} - Connection ..."
+	sshfs -o "reconnect,uid=${USER_UID},gid=${USER_GID}" "${SSHFS_NAME}_${SERVER_INDEX}:" "${MOUNT_POINT}"
+
+	# check ressource
+	SERVER_REACHED=$(mount | grep "sshfs" | grep "${MOUNT_POINT}") 
+fi
+
+# if ressource has been mounted
+if [ ${SERVER_INDEX} -gt 0 ]
+then
+	# open file manager windows on the drive
+	echo "80"
+	echo "# ${SERVER_LABEL} - Launch file manager ..."
+	${FILE_MANAGER} "${MOUNT_POINT}" &
+
+	# sucess notification
+	TEXT="${SSHFS_LABEL} is now accessible thru ${SERVER_LABEL}."
+	TITLE="${SSHFS_LABEL} mounted"
+	ICON=$(grep "^icon=" "${SSHFS_CONFIG}" | cut -d'=' -f2)
+
+# else, ressource can't be mounted
+else
+	# failure notification
+	TEXT="${SSHFS_LABEL} could not be mounted.\nCheck your network connection."
+	TITLE="No Connection"
+	ICON="stop"
+fi
+
+# final notification
+echo "90"
+echo "# Notification"
+notify-send --icon="${ICON}" --expire-time=5000 "${TITLE}" "${TEXT}"
+
+# finished
+echo "100"
+
+) | zenity --progress --auto-close --width 300 --title "Connection to ${SSHFS_LABEL}"

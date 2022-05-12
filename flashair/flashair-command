@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # -------------------------------------------------------------------
 # Tool to synchronise Toshiba Flashair SD Card
 # It synchronise either :
@@ -20,13 +20,10 @@ command -v convert >/dev/null 2>&1 || { logger "FlashAir - convert is not instal
 command -v inotifywait >/dev/null 2>&1 || { logger "FlashAir - inotifywait is not installed [inotify-tools package]"; exit 1; }
 command -v zenity >/dev/null 2>&1 || { logger "FlashAir - zenity is not installed"; exit 1; }
 command -v yad >/dev/null 2>&1 || { logger "FlashAir - yad is not installed"; exit 1; }
-command -v desktop-display >/dev/null 2>&1 || { logger "FlashAir - desktop-display is not installed"; exit 1; }
+command -v desktop-display >/dev/null 2>&1 || { logger "FlashAir - desktop-display is not installed (https://github.com/NicolasBernaerts/ubuntu-scripts/tree/master/desktop)"; exit 1; }
 
 # load flashair environment variables
 . /usr/local/sbin/flashair-common
-
-# load latest desktop session environment
-. /usr/local/sbin/desktop-display
 
 # empty arrays
 ARR_ITEM=()
@@ -269,7 +266,7 @@ case "${MODE}" in
 
 	# if needed, ask confirmation
 	[ ${#ARR_ITEM[@]} -gt 1 ] && TEXT="Download ${NBR_ITEM} file(s) from card ?" || TEXT="Download ${CARD_FIRST_PATH} from card ?"
-	[ "${FLASHAIR_CONFIRM}" = "true" ] && { ${ARR_DESKTOP[@]} yad --question --image=flashair-download --center --title "Flashair : Download" --text "${TEXT}"; CONFIRMED=$?; }
+	[ "${FLASHAIR_CONFIRM}" = "true" ] && { desktop-display yad --question --image=flashair-download --center --title "Flashair : Download" --text "${TEXT}"; CONFIRMED=$?; }
 
 	# if download canceled, empty array of items
 	[ ${CONFIRMED} -eq 1 ] && ARR_ITEM=( )
@@ -282,7 +279,7 @@ case "${MODE}" in
 
 	# if needed, ask confirmation
 	[ ${#ARR_ITEM[@]} -gt 1 ] && TEXT="Upload ${NBR_ITEM} file(s) to card ?" || TEXT="Upload ${CARD_FIRST_PATH} to card ?"
-	[ "${FLASHAIR_CONFIRM}" = "true" ] && { ${ARR_DESKTOP[@]} yad --question --image=flashair-delete --center --title "Flashair : Upload" --text "${TEXT}"; CONFIRMED=$?; }
+	[ "${FLASHAIR_CONFIRM}" = "true" ] && { desktop-display yad --question --image=flashair-delete --center --title "Flashair : Upload" --text "${TEXT}"; CONFIRMED=$?; }
 
 	# if upload canceled, empty array of items
 	[ ${CONFIRMED} -eq 1 ] && ARR_ITEM=( )
@@ -295,7 +292,7 @@ case "${MODE}" in
 
 	# if needed, ask confirmation
 	[ ${#ARR_ITEM[@]} -gt 1 ] && TEXT="Delete ${NBR_ITEM} file(s) from card ?" || TEXT="Delete ${CARD_FIRST_PATH} from card ?"
-	[ "${FLASHAIR_CONFIRM}" = "true" ] && { ${ARR_DESKTOP[@]} yad --question --image=flashair-delete --center --title "Flashair : Delete" --text "${TEXT}"; CONFIRMED=$?; }
+	[ "${FLASHAIR_CONFIRM}" = "true" ] && { desktop-display yad --question --image=flashair-delete --center --title "Flashair : Delete" --text "${TEXT}"; CONFIRMED=$?; }
 
 	# if deleted canceled, empty array of items
 	[ ${CONFIRMED} -eq 1 ] && ARR_ITEM=( )
